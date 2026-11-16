@@ -4,12 +4,14 @@ import "github.com/egoist/mygo/ui"
 
 func (a *app) view(c *ui.Context) {
 	c.SetTheme(appTheme(c.Theme()))
+	defer a.navigation(c)
 	t := c.Theme()
 	ui.Column(c).Fill().Background(t.Background).Children(func() {
 		ui.Row(c).FillWidth().Height(58).Padding(0, 20).Gap(10).
 			BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
 			ui.Text(c, "Sento").FontSize(20).FontWeight(700)
 			ui.Text(c, "API client").TextColor(t.TextMuted)
+			ui.Button(c, "Shortcuts").OnClick(func() { a.shortcutsOpen = true })
 			ui.Spacer(c)
 			ui.Button(c, "New request").Disabled(a.fileBusy).OnClick(a.newRequest)
 			ui.Button(c, "Import").Disabled(a.fileBusy).OnClick(a.openFile)

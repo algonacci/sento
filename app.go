@@ -20,6 +20,7 @@ type host interface {
 }
 
 type app struct {
+	shortcutsOpen                                   bool
 	host                                            host
 	source, path, format, selected                  string
 	doc                                             *workspace.Document
