@@ -1,4 +1,4 @@
-.PHONY: dev build check fmt
+.PHONY: dev build cli check fmt
 
 dev:
 	go tool mygo dev
@@ -6,10 +6,13 @@ dev:
 build:
 	go tool mygo build
 
+cli:
+	go build -o build/sento ./cmd/sento
+
 check:
 	go test ./...
 	go vet ./...
 	go tool mygo vet .
 
 fmt:
-	gofmt -w main.go app.go view.go theme.go
+	gofmt -w *.go internal cmd

@@ -1,48 +1,127 @@
 # Sento
 
-API client ala-ala, desktop native pakai Go + [MyGo](https://mygo.egoist.dev).
+API client native pakai Go + [MyGo](https://mygo.egoist.dev), terinspirasi dari
+[Endpoint](https://github.com/yaffalhakim1/endpoint). Requests ditulis sebagai
+kode yang bisa dibaca manusia, AI, dan automation.
 
-## Status
+## Yang sudah jalan
 
-Scaffold awal: window native mengikuti tema sistem, sidebar workspace, draft
-request (method, URL, body), reset lewat **New request**, dan empty state response.
-Draft masih in-memory. Tombol **Send** belum aktif; HTTP execution, collections,
-history, dan persistence jadi iterasi berikutnya.
+- Editor `.http`, daftar request, Send/Cancel, response body dan headers.
+- Open/Save `.http` atau workspace JSON; export `.http` menjadi workspace JSON.
+- Variables `{{name}}`, secret dari `{{env.NAME}}`, dan environment pada JSON.
+- CLI headless untuk validate, list, run, export, schema, dan AI generate.
+- AI generator OpenAI-compatible: base URL, model, API key, prompt, preview
+  `.http`, lalu **Open generated requests** untuk membukanya di editor.
+- Request engine dari Endpoint: Bearer/Basic/API-key auth, query/headers,
+  JSON/raw/multipart/file body, timeout, redirect, TLS, proxy.
+
+## Mulai dari `.http`
+
+```http
+@baseUrl = https://api.example.com
+
+### List users
+# @name list-users
+GET {{baseUrl}}/users
+Authorization: Bearer {{env.API_TOKEN}}
+Accept: application/json
+
+### Create user
+# @name create-user
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{"name":"Ada"}
+```
+
+Contoh siap dibuka: [`examples/requests.http`](examples/requests.http).
+Klik **Validate / refresh** setelah mengedit untuk memperbarui daftar;
+**Send selected** selalu mem-parse source terbaru sebelum mengirim.
+
+Format `.http` memakai subset eksplisit, bukan seluruh fitur VS Code REST Client
+atau JetBrains HTTP Client. Detail grammar dan JSON ada di
+[`docs/request-format.md`](docs/request-format.md).
 
 ## Development
 
-Butuh Go **1.27.3** dan native build dependencies untuk OS yang dipakai sesuai
-[dokumentasi MyGo](https://mygo.egoist.dev). MyGo dipin ke **v0.7.4**;
-CLI tersedia lewat Go tool dependency, tanpa install global.
+Go **1.27.3**, MyGo **v0.7.4**, dan native build dependencies sesuai
+[dokumentasi MyGo](https://mygo.egoist.dev).
 
 ```sh
 go mod download
-go tool mygo dev       # jalankan dengan live reload
-go tool mygo build     # package aplikasi ke build/
+make dev             # GUI dengan live reload
+make build           # package GUI ke build/
+make cli             # headless binary: build/sento
+make check           # tests, Go vet, MyGo vet
 ```
 
-Shortcut: `make dev`, `make build`, `make check`, dan `make fmt`.
+## CLI / automation
 
 ```sh
-go test ./...
-go vet ./...
-go tool mygo vet .
+go run ./cmd/sento validate examples/requests.http
+go run ./cmd/sento list examples/requests.http
+go run ./cmd/sento run --request get-query examples/requests.http
+go run ./cmd/sento export examples/requests.http > workspace.sento.json
+go run ./cmd/sento run --request get-query --env staging workspace.sento.json
+go run ./cmd/sento schema > sento.schema.json
 ```
+
+`--env` membutuhkan environment dengan ID tersebut di workspace JSON; contoh
+`.http` tidak mendefinisikan `staging`. Flags ditempatkan sebelum path.
+Validate/list/run menghasilkan JSON. Run mencetak status, headers, body string,
+dan durasi; error transport atau HTTP 4xx/5xx menghasilkan exit code 1.
+Tidak ada request jaringan saat validate/list/export. Ctrl+C membatalkan run.
+
+## AI
+
+Konfigurasi dari panel **AI**, atau environment sebelum menjalankan aplikasi/CLI:
+
+```sh
+export SENTO_AI_BASE_URL=http://localhost:11434/v1
+export SENTO_AI_MODEL=your-model
+# export SENTO_AI_API_KEY=...  # jika provider membutuhkan key
+
+printf 'Generate GET and POST requests for a users API at localhost:3000' |
+  go run ./cmd/sento generate > users.http
+go run ./cmd/sento validate users.http
+```
+
+Base URL boleh memakai path provider sendiri; Sento menambahkan
+`/chat/completions`. AI menerima prompt yang diketik/paste, mengembalikan `.http`,
+dan output diperiksa dengan parser yang sama dengan GUI/CLI. Tombol **Open
+generated requests** mengganti isi editor; request dijalankan lewat Send.
+Provider config dari panel hanya berlaku selama sesi; environment menyediakan
+konfigurasi programmatic. Implementasi awal non-streaming dengan timeout 60 detik.
+
+## Batas tahap ini
+
+File disimpan eksplisit melalui Save as; belum ada autosave, recent files,
+history, atau konfirmasi unsaved edits saat mengganti editor/menutup app.
+Response GUI dibatasi preview 256 KiB; engine membaca maksimal 64 MiB.
+Cookie jar berlaku per eksekusi; belum ada sesi cookie antar-request.
+JSON mendukung environment dan project options; `.http` belum membaca sidecar
+config. AI belum chat multi-turn, tool calling, atau analisis response.
 
 ## Struktur
 
 ```text
-main.go     Bootstrap MyGo, window native, dan adapter desktop
-app.go      State draft dan actions; host interface untuk UI updates
-view.go     Layout API client dengan native UI
-theme.go    Penyesuaian tema sistem
-mygo.json   Metadata aplikasi dan output packaging
+main.go, app.go, view.go    Native window, state, request execution, UI
+files.go, ai.go            File actions dan AI UI lifecycle
+internal/httpfile/         Parser .http
+internal/workspace/        Model, validation, variables, JSON schema, persistence
+internal/project/          Loader bersama .http / JSON
+internal/request/          HTTP engine dan response formatting dari Endpoint
+internal/ai/               OpenAI-compatible .http generator
+cmd/sento/                 CLI tanpa dependency MyGo
+examples/                 Request files
 ```
 
-Side effect berjalan dari action, bukan render. I/O nanti dijalankan di
-goroutine, lalu hasil diterapkan melalui `host.Update` (asynchronous).
-Simpan data atau `ui.Handle` di state, bukan element atau `*ui.Context`.
+Worker memakai snapshot input dan mengirim hasil melalui `host.Update`.
+Cancellation memakai generation counter agar callback lama tidak menimpa state
+baru. Element dan `*ui.Context` tidak disimpan di app state.
 
-## License
+## License & credits
 
-[MIT](LICENSE)
+[MIT](LICENSE). Bagian engine/model diadaptasi dari Endpoint; atribusi, commit
+asal, dan lisensi ada di [`third_party/endpoint`](third_party/endpoint).
+Pola AI transport dan lifecycle mengikuti [Tomori](third_party/tomori/README.md).

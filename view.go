@@ -2,60 +2,107 @@ package main
 
 import "github.com/egoist/mygo/ui"
 
-var requestMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-
 func (a *app) view(c *ui.Context) {
 	c.SetTheme(appTheme(c.Theme()))
 	t := c.Theme()
 	ui.Column(c).Fill().Background(t.Background).Children(func() {
-		ui.Row(c).FillWidth().Height(58).Padding(0, 20).Gap(12).
+		ui.Row(c).FillWidth().Height(58).Padding(0, 20).Gap(10).
 			BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
 			ui.Text(c, "Sento").FontSize(20).FontWeight(700)
-			ui.Text(c, "API client ala-ala").TextColor(t.TextMuted)
+			ui.Text(c, "Requests as code").TextColor(t.TextMuted)
 			ui.Spacer(c)
-			ui.Button(c, "New request").OnClick(a.newRequest)
+			ui.Button(c, "Open").Disabled(a.fileBusy).OnClick(a.openFile)
+			ui.Button(c, "Save as").Disabled(a.fileBusy).OnClick(func() { a.saveFile(false) })
+			ui.Button(c, "Export JSON").Disabled(a.fileBusy).OnClick(func() { a.saveFile(true) })
+			ui.Button(c, "AI").OnClick(func() { a.ai.open = !a.ai.open })
 		})
-		ui.Row(c).FillWidth().Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
-			a.sidebar(c)
-			ui.Column(c).Grow(1).MinWidth(0).Padding(24).Gap(16).Children(func() {
-				ui.Text(c, "Untitled request").FontSize(18).FontWeight(600)
-				ui.Row(c).FillWidth().Gap(8).Children(func() {
-					c.Key("request-method")
-					ui.Select(c, &a.draft.method, requestMethods).Label("HTTP method").Width(112)
-					c.Key("request-url")
-					ui.TextInput(c, &a.draft.url).Label("Request URL").
-						Placeholder("https://api.example.com").Grow(1).MinWidth(0)
-					ui.Button(c, "Send").Disabled(true).Tooltip("HTTP execution is coming next")
-				})
-				ui.Text(c, "Body").FontWeight(600)
-				c.Key("request-body")
-				ui.TextArea(c, &a.draft.body).Label("Request body").
-					Placeholder("Optional request body").FillWidth().Height(160)
-				ui.Column(c).FillWidth().Grow(1).MinHeight(0).Padding(20).Gap(12).
-					Background(t.Surface).BorderWidth(1).BorderColor(t.Border).Radius(8).Children(func() {
-					ui.Text(c, "Response").FontWeight(600)
-					ui.Column(c).FillWidth().Grow(1).Center().Gap(8).Children(func() {
-						ui.Text(c, "No response yet").FontSize(16)
-						ui.Text(c, "Request execution will be added in the next iteration.").TextColor(t.TextMuted)
+		if a.ai.open {
+			a.aiView(c)
+		} else {
+			ui.Row(c).FillWidth().Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
+				a.sidebar(c)
+				ui.Column(c).Grow(1).MinWidth(0).Padding(16).Gap(10).Children(func() {
+					ui.Row(c).FillWidth().Gap(10).Children(func() {
+						ui.Text(c, "Source "+a.format).FontWeight(600)
+						ui.Spacer(c)
+						ui.Button(c, "Validate / refresh").Disabled(a.fileBusy).OnClick(func() { a.parse() })
+						if a.busy {
+							ui.Button(c, "Cancel").OnClick(func() { a.stop(); a.resultLabel = "Canceled" })
+						} else {
+							ui.Button(c, "Send selected").Disabled(a.fileBusy).OnClick(a.send)
+						}
+					})
+					c.Key("source")
+					ui.TextArea(c, &a.source).Label("Request source").ReadOnly(a.fileBusy).FillWidth().Grow(1).MinHeight(140)
+					label := a.resultLabel
+					if label == "" {
+						label = "Response · select a request and press Send"
+					}
+					ui.Text(c, label).FontWeight(600).SingleLine()
+					ui.Row(c).FillWidth().Grow(1).MinHeight(100).Gap(10).Children(func() {
+						c.Key("response-body")
+						ui.TextArea(c, &a.response).Label("Response body").Placeholder("Response body").ReadOnly(true).Grow(2).MinWidth(0).FillHeight()
+						c.Key("response-headers")
+						ui.TextArea(c, &a.responseHeaders).Label("Response headers").Placeholder("Response headers").ReadOnly(true).Grow(1).MinWidth(0).FillHeight()
 					})
 				})
 			})
-		})
-		ui.Row(c).FillWidth().Height(30).Padding(0, 16).
+		}
+		ui.Row(c).FillWidth().Height(32).Padding(0, 16).
 			BorderWidth(1, 0, 0, 0).BorderColor(t.Border).Children(func() {
-			ui.Text(c, "Scaffold · Drafts are kept in memory").FontSize(11).TextColor(t.TextMuted)
+			ui.Text(c, a.message).FontSize(11).TextColor(t.TextMuted).SingleLine().Tooltip(a.message)
 		})
 	})
 }
 
 func (a *app) sidebar(c *ui.Context) {
 	t := c.Theme()
-	ui.Column(c).Width(200).FillHeight().Padding(20).Gap(12).
-		Background(t.Surface).BorderWidth(0, 1, 0, 0).BorderColor(t.Border).Children(func() {
-		ui.Text(c, "WORKSPACE").FontSize(11).FontWeight(600).TextColor(t.TextMuted)
-		ui.Text(c, "Scratch request").FontWeight(600)
-		ui.Text(c, "Start with a method, URL, and optional body.").TextColor(t.TextMuted)
-		ui.Spacer(c)
-		ui.Text(c, "Collections and history\nComing next").FontSize(12).TextColor(t.TextMuted)
+	ui.Scroll(c).Width(210).FillHeight().Background(t.Surface).Children(func() {
+		ui.Column(c).FillWidth().Padding(14).Gap(8).Children(func() {
+			ui.Text(c, "REQUESTS").FontSize(11).FontWeight(600).TextColor(t.TextMuted)
+			if a.doc == nil {
+				return
+			}
+			for _, p := range a.doc.Projects {
+				ui.Text(c, p.Name).FontWeight(600)
+				for _, f := range p.Folders {
+					ui.Text(c, f.Name).TextColor(t.TextMuted).FontSize(11)
+					for _, r := range f.Requests {
+						c.Key(r.ID)
+						b := ui.Button(c, r.Method+" "+r.Name).FillWidth().Tooltip(r.URL).
+							OnClick(func() { a.selected = r.ID })
+						if a.selected == r.ID {
+							b.Background(t.Accent).TextColor(ui.Hex("#ffffff"))
+						}
+					}
+				}
+			}
+		})
+	})
+}
+
+func (a *app) aiView(c *ui.Context) {
+	s := &a.ai
+	ui.Column(c).FillWidth().Grow(1).MinHeight(0).Padding(20).Gap(10).Children(func() {
+		ui.Text(c, "Generate .http with AI").FontSize(18).FontWeight(600)
+		ui.Text(c, "Describe an API or paste its documentation. The description below is sent to your configured provider.").TextColor(c.Theme().TextMuted)
+		ui.Row(c).FillWidth().Gap(10).Children(func() {
+			ui.TextInput(c, &s.baseURL).Label("AI base URL").Placeholder("https://api.openai.com/v1").Grow(2)
+			ui.TextInput(c, &s.model).Label("AI model").Placeholder("Model").Grow(1)
+			ui.TextInput(c, &s.key).Label("AI API key").Placeholder("API key (session only)").Password().Grow(1)
+		})
+		c.Key("ai-prompt")
+		ui.TextArea(c, &s.prompt).Label("API description").Placeholder("Create requests for…").FillWidth().Height(140)
+		ui.Row(c).FillWidth().Gap(10).Children(func() {
+			if s.busy {
+				ui.Button(c, "Stop").OnClick(func() { a.stopAI(); s.message = "Canceled" })
+			} else {
+				ui.Button(c, "Generate").OnClick(a.generate)
+			}
+			ui.Button(c, "Open generated requests").Disabled(s.answer == "" || a.fileBusy).OnClick(a.useGenerated)
+			ui.Text(c, s.message).SingleLine().Tooltip(s.message)
+		})
+		c.Key("ai-result")
+		ui.TextArea(c, &s.answer).Label("Generated HTTP source").ReadOnly(true).FillWidth().Grow(1).MinHeight(100)
 	})
 }

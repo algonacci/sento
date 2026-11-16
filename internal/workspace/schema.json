@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sento workspace v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "projects"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"const": 1},
+    "active": {"type": "string"},
+    "projects": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/project"}},
+    "recents": {"type": ["array", "null"], "items": {"type": "object", "additionalProperties": false, "properties": {"method": {"type": "string"}, "url": {"type": "string"}, "at": {"type": "string"}}}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"},
+    "pairs": {"type": ["array", "null"], "items": {"type": "object", "additionalProperties": false, "required": ["key", "value"], "properties": {"key": {"type": "string"}, "value": {"type": "string"}}}},
+    "auth": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["", "none", "inherit", "bearer", "basic", "key"]},
+        "username": {"type": "string"}, "password": {"type": "string"},
+        "token": {"type": "string"}, "header": {"type": "string"}, "value": {"type": "string"}
+      }
+    },
+    "http": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "timeoutSeconds": {"type": "integer", "minimum": 0, "maximum": 86400},
+        "noRedirects": {"type": "boolean"}, "insecureTLS": {"type": "boolean"},
+        "noCookies": {"type": "boolean"}, "proxy": {"type": "string"}
+      }
+    },
+    "request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "method", "url"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "name": {"type": "string", "minLength": 1},
+        "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]},
+        "url": {"type": "string", "minLength": 1},
+        "params": {"$ref": "#/$defs/pairs"}, "headers": {"$ref": "#/$defs/pairs"},
+        "auth": {"$ref": "#/$defs/auth"},
+        "body": {"enum": ["", "none", "json", "raw", "form", "file"]},
+        "json": {"type": "string"}, "raw": {"type": "string"},
+        "form": {"$ref": "#/$defs/pairs"}, "file": {"type": "string"}
+      }
+    },
+    "folder": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "name": {"type": "string", "minLength": 1}, "open": {"type": "boolean"},
+        "requests": {"type": ["array", "null"], "items": {"$ref": "#/$defs/request"}}
+      }
+    },
+    "environment": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "name": {"type": "string", "minLength": 1}, "vars": {"$ref": "#/$defs/pairs"}}
+    },
+    "project": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "name": {"type": "string", "minLength": 1},
+        "auth": {"allOf": [{"$ref": "#/$defs/auth"}, {"properties": {"type": {"not": {"const": "inherit"}}}}]},
+        "http": {"$ref": "#/$defs/http"}, "vars": {"$ref": "#/$defs/pairs"},
+        "environments": {"type": ["array", "null"], "items": {"$ref": "#/$defs/environment"}},
+        "activeEnv": {"type": "string"},
+        "folders": {"type": ["array", "null"], "items": {"$ref": "#/$defs/folder"}}
+      }
+    }
+  }
+}

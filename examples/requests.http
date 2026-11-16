@@ -1,0 +1,18 @@
+@baseUrl = https://httpbin.org
+
+### Inspect query parameters
+# @name get-query
+GET {{baseUrl}}/get?tag=go&tag=mygo
+Accept: application/json
+
+### Send JSON
+# @name create-item
+POST {{baseUrl}}/post
+Content-Type: application/json
+
+{"name":"Sento","native":true}
+
+### Authenticated request
+# @name check-auth
+GET {{baseUrl}}/bearer
+Authorization: Bearer {{env.API_TOKEN}}
