@@ -31,3 +31,8 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# MyGo build output and local development artifacts
+/build/
+/sento
+.DS_Store
