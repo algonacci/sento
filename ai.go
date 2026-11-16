@@ -59,4 +59,5 @@ func (a *app) useGenerated() {
 	a.source, a.format, a.path = a.ai.answer, ".http", ""
 	a.ai.open = false
 	a.parse()
+	a.sourceMode = false
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,14 +19,6 @@ type host interface {
 	SaveFile(string) (string, error)
 }
 
-const initialSource = `@baseUrl = https://httpbin.org
-
-### Get a response
-# @name get-response
-GET {{baseUrl}}/get
-Accept: application/json
-`
-
 type app struct {
 	host                                            host
 	source, path, format, selected                  string
@@ -35,14 +28,20 @@ type app struct {
 	cancel                                          context.CancelFunc
 	generation                                      int
 	ai                                              aiState
+	sourceMode                                      bool
+	requestTab                                      string
 }
 
 func newApp(h host) *app {
-	a := &app{host: h, source: initialSource, format: ".http"}
+	a := &app{host: h, format: ".json", requestTab: "Body"}
 	a.ai.baseURL = os.Getenv("SENTO_AI_BASE_URL")
 	a.ai.model = os.Getenv("SENTO_AI_MODEL")
 	a.ai.key = os.Getenv("SENTO_AI_API_KEY")
-	a.parse()
+	a.doc = &workspace.Document{Version: workspace.Version, Active: "workspace", Projects: []workspace.Project{{
+		ID: "workspace", Name: "My workspace", HTTP: workspace.HTTPOptions{TimeoutSeconds: 30},
+		Folders: []workspace.Folder{{ID: "requests", Name: "Requests"}},
+	}}}
+	a.newRequest()
 	return a
 }
 
@@ -73,6 +72,23 @@ func (a *app) parse() bool {
 	return true
 }
 
+func (a *app) toggleSource() {
+	if a.sourceMode {
+		if a.parse() {
+			a.sourceMode = false
+		}
+		return
+	}
+	// JSON preserves all builder settings, including auth, forms and environments.
+	data, err := json.MarshalIndent(a.doc, "", "  ")
+	if err != nil {
+		a.message = err.Error()
+		return
+	}
+	a.source, a.format, a.sourceMode = string(data), ".json", true
+	a.message = "Advanced workspace source · .http files can be opened with Import"
+}
+
 func (a *app) stop() {
 	if a.cancel != nil {
 		a.cancel()
@@ -89,7 +105,7 @@ func (a *app) shutdown() {
 }
 
 func (a *app) send() {
-	if a.busy || !a.parse() {
+	if a.busy || (a.sourceMode && !a.parse()) {
 		return
 	}
 	p, r := a.doc.FindRequest(a.selected)

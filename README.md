@@ -2,11 +2,13 @@
 
 API client native pakai Go + [MyGo](https://mygo.egoist.dev), terinspirasi dari
 [Endpoint](https://github.com/yaffalhakim1/endpoint). Requests ditulis sebagai
-kode yang bisa dibaca manusia, AI, dan automation.
+kode yang bisa dibaca manusia, AI, dan automation, dengan request builder sebagai
+tampilan utama: pilih method, isi URL, headers, dan body, lalu Send.
 
 ## Yang sudah jalan
 
-- Editor `.http`, daftar request, Send/Cancel, response body dan headers.
+- Request builder dengan method/URL, tab Params, Headers, Body, Auth, dan New request.
+- Send/Cancel, response body dan headers; source editor opsional melalui **Source**.
 - Open/Save `.http` atau workspace JSON; export `.http` menjadi workspace JSON.
 - Variables `{{name}}`, secret dari `{{env.NAME}}`, dan environment pada JSON.
 - CLI headless untuk validate, list, run, export, schema, dan AI generate.
@@ -15,7 +17,19 @@ kode yang bisa dibaca manusia, AI, dan automation.
 - Request engine dari Endpoint: Bearer/Basic/API-key auth, query/headers,
   JSON/raw/multipart/file body, timeout, redirect, TLS, proxy.
 
-## Mulai dari `.http`
+## Mulai dari request builder
+
+Aplikasi dibuka dengan request GET kosong. Isi URL, pilih method, lalu klik
+**Send**. Untuk payload, buka tab **Body**, pilih `json` atau `raw`, lalu isi body.
+Tab **Params**, **Headers**, dan **Auth** mengatur detail request tanpa menulis
+source. **New request** menambah request; sidebar berpindah antar-request.
+
+**Import** membuka `.http` atau workspace JSON ke builder. **Save as** dari
+builder menyimpan workspace JSON yang mempertahankan seluruh pengaturan.
+**Source** membuka representasi JSON lanjutan, **Builder** kembali ke form.
+Hasil AI juga dibuka langsung di builder.
+
+## Opsional: import `.http`
 
 ```http
 @baseUrl = https://api.example.com
@@ -35,8 +49,8 @@ Content-Type: application/json
 ```
 
 Contoh siap dibuka: [`examples/requests.http`](examples/requests.http).
-Klik **Validate / refresh** setelah mengedit untuk memperbarui daftar;
-**Send selected** selalu mem-parse source terbaru sebelum mengirim.
+File yang diimpor bisa diedit lewat form. Di mode Source, klik **Validate /
+refresh** untuk memperbarui daftar; **Send** mem-parse source terbaru terlebih dulu.
 
 Format `.http` memakai subset eksplisit, bukan seluruh fitur VS Code REST Client
 atau JetBrains HTTP Client. Detail grammar dan JSON ada di
@@ -106,6 +120,7 @@ config. AI belum chat multi-turn, tool calling, atau analisis response.
 
 ```text
 main.go, app.go, view.go    Native window, state, request execution, UI
+builder.go                 Request form, tabs, headers/params/auth/body
 files.go, ai.go            File actions dan AI UI lifecycle
 internal/httpfile/         Parser .http
 internal/workspace/        Model, validation, variables, JSON schema, persistence

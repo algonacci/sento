@@ -53,19 +53,20 @@ func (a *app) openFile() {
 			a.stop()
 			a.path, a.format, a.source = path, format, string(data)
 			a.parse()
+			a.sourceMode = false
 		})
 	}()
 }
 
 func (a *app) saveFile(export bool) {
-	if a.fileBusy || !a.parse() {
+	if a.fileBusy || (a.sourceMode && !a.parse()) {
 		return
 	}
 	data, name := []byte(a.source), a.path
 	if name == "" {
 		name = "requests" + a.format
 	}
-	if export {
+	if export || !a.sourceMode {
 		var err error
 		data, err = workspace.Encode(a.doc)
 		if err != nil {

@@ -9,11 +9,16 @@ func (a *app) view(c *ui.Context) {
 		ui.Row(c).FillWidth().Height(58).Padding(0, 20).Gap(10).
 			BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
 			ui.Text(c, "Sento").FontSize(20).FontWeight(700)
-			ui.Text(c, "Requests as code").TextColor(t.TextMuted)
+			ui.Text(c, "API client").TextColor(t.TextMuted)
 			ui.Spacer(c)
-			ui.Button(c, "Open").Disabled(a.fileBusy).OnClick(a.openFile)
+			ui.Button(c, "New request").Disabled(a.fileBusy).OnClick(a.newRequest)
+			ui.Button(c, "Import").Disabled(a.fileBusy).OnClick(a.openFile)
 			ui.Button(c, "Save as").Disabled(a.fileBusy).OnClick(func() { a.saveFile(false) })
-			ui.Button(c, "Export JSON").Disabled(a.fileBusy).OnClick(func() { a.saveFile(true) })
+			label := "Source"
+			if a.sourceMode {
+				label = "Builder"
+			}
+			ui.Button(c, label).Disabled(a.fileBusy).OnClick(a.toggleSource)
 			ui.Button(c, "AI").OnClick(func() { a.ai.open = !a.ai.open })
 		})
 		if a.ai.open {
@@ -22,18 +27,18 @@ func (a *app) view(c *ui.Context) {
 			ui.Row(c).FillWidth().Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
 				a.sidebar(c)
 				ui.Column(c).Grow(1).MinWidth(0).Padding(16).Gap(10).Children(func() {
-					ui.Row(c).FillWidth().Gap(10).Children(func() {
-						ui.Text(c, "Source "+a.format).FontWeight(600)
-						ui.Spacer(c)
-						ui.Button(c, "Validate / refresh").Disabled(a.fileBusy).OnClick(func() { a.parse() })
-						if a.busy {
-							ui.Button(c, "Cancel").OnClick(func() { a.stop(); a.resultLabel = "Canceled" })
-						} else {
-							ui.Button(c, "Send selected").Disabled(a.fileBusy).OnClick(a.send)
-						}
-					})
-					c.Key("source")
-					ui.TextArea(c, &a.source).Label("Request source").ReadOnly(a.fileBusy).FillWidth().Grow(1).MinHeight(140)
+					if a.sourceMode {
+						ui.Row(c).FillWidth().Gap(10).Children(func() {
+							ui.Text(c, "Source "+a.format).FontWeight(600)
+							ui.Spacer(c)
+							ui.Button(c, "Validate / refresh").Disabled(a.fileBusy).OnClick(func() { a.parse() })
+							a.sendButton(c)
+						})
+						c.Key("source")
+						ui.TextArea(c, &a.source).Label("Request source").ReadOnly(a.fileBusy).FillWidth().Grow(1).MinHeight(140)
+					} else {
+						a.builderView(c)
+					}
 					label := a.resultLabel
 					if label == "" {
 						label = "Response · select a request and press Send"
@@ -70,7 +75,7 @@ func (a *app) sidebar(c *ui.Context) {
 					for _, r := range f.Requests {
 						c.Key(r.ID)
 						b := ui.Button(c, r.Method+" "+r.Name).FillWidth().Tooltip(r.URL).
-							OnClick(func() { a.selected = r.ID })
+							OnClick(func() { a.selectRequest(r.ID) })
 						if a.selected == r.ID {
 							b.Background(t.Accent).TextColor(ui.Hex("#ffffff"))
 						}

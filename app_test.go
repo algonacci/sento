@@ -37,6 +37,7 @@ func TestSendSnapshotAndCanceledQueuedResult(t *testing.T) {
 	a := newApp(h)
 	defer a.shutdown()
 	a.source = "# @name local\nGET " + srv.URL
+	a.sourceMode, a.format = true, ".http"
 	a.send()
 	callback := h.next(t)
 	if !a.busy || a.response != "" {
@@ -79,7 +80,7 @@ func TestNativeViewsAndResize(t *testing.T) {
 	tt := ui.NewTester(a.view, 1120, 760)
 	for _, size := range [][2]int{{1120, 760}, {960, 680}} {
 		tt.SetSize(size[0], size[1])
-		for _, label := range []string{"Request source", "Send selected", "Response body", "Response headers"} {
+		for _, label := range []string{"Request URL", "HTTP method", "Send", "Response body", "Response headers"} {
 			box, ok := tt.Find(label)
 			if !ok || box.W <= 0 || box.H <= 0 {
 				t.Fatalf("missing %q at %v: %+v", label, size, box)
