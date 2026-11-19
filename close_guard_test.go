@@ -226,7 +226,7 @@ func TestQuitAsksWhileRequestRuns(t *testing.T) {
 func TestCloseIgnoredBehindDialog(t *testing.T) {
 	a, h, tt := newCloseFixture(t)
 	clickOK(t, tt, "Shortcuts")
-	if !a.shortcutsOpen || !tt.HasText(closeKey()+" — Close Sento (asks first if a request runs or changes are unsaved)") {
+	if !a.shortcutsOpen || !tt.HasText(closeKey()) || !tt.HasText("Close Sento (asks first if a request runs or changes are unsaved)") {
 		t.Fatalf("shortcuts %v; have %v", a.shortcutsOpen, tt.Texts())
 	}
 	pressClose(tt)

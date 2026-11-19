@@ -7,8 +7,14 @@ tampilan utama: pilih method, isi URL, headers, dan body, lalu Send.
 
 ## Yang sudah jalan
 
-- Request builder dengan method/URL, tab Params, Headers, Body, Auth, dan New request.
-- Send/Cancel, response body dan headers; source editor opsional melalui **Source**.
+- Request builder: satu baris **[Method][URL][Send]**, lalu tab Params, Headers,
+  Body, dan Auth. Enter di URL atau Ctrl/Cmd+Enter mengirim.
+- Response: status code berwarna per kelas (2xx/3xx/4xx/5xx), waktu, ukuran,
+  tab Body dan Headers; preview yang dipotong di 256 KiB diberi tanda.
+- Sidebar: environment aktif, daftar request (badge method berwarna), filter,
+  dan New request.
+- Tampilan System/Light/Dark dari title bar, disimpan di `settings.json` pada
+  config dir user (`SENTO_CONFIG_DIR` untuk override).
 - Open/Save `.http` atau workspace JSON; export `.http` menjadi workspace JSON.
 - Variables `{{name}}`, secret dari `{{env.NAME}}`, dan environment pada JSON.
 - CLI headless untuk validate, list, run, export, schema, dan AI generate.
@@ -19,15 +25,20 @@ tampilan utama: pilih method, isi URL, headers, dan body, lalu Send.
 
 ## Mulai dari request builder
 
-Aplikasi dibuka dengan request GET kosong. Isi URL, pilih method, lalu klik
-**Send**. Untuk payload, buka tab **Body**, pilih `json` atau `raw`, lalu isi body.
-Tab **Params**, **Headers**, dan **Auth** mengatur detail request tanpa menulis
-source. **New request** menambah request; sidebar berpindah antar-request.
+Aplikasi dibuka dengan request GET kosong. Isi URL di baris paling atas, pilih
+method, lalu tekan Enter atau **Send**. Nama request diedit di title bar. Untuk
+payload, buka tab **Body**, pilih JSON/Raw/Form/File, lalu isi body. Tab
+**Params**, **Headers**, dan **Auth** mengatur detail request tanpa menulis
+source. Response tampil di sebelah request pada window lebar, dan di bawahnya
+pada window sempit; pembatasnya bisa digeser.
 
-**Import** membuka `.http` atau workspace JSON ke builder. **Save as** dari
-builder menyimpan workspace JSON yang mempertahankan seluruh pengaturan.
-**Source** membuka representasi JSON lanjutan, **Builder** kembali ke form.
-Hasil AI juga dibuka langsung di builder.
+Aksi yang jarang dipakai ada di menu **More** (dan menu bar macOS): New request,
+**Import** `.http`/JSON, **Save as** workspace JSON, **Edit workspace source**,
+**Generate with AI**, dan Keyboard shortcuts. Semuanya juga punya shortcut;
+Ctrl/Cmd+/ menampilkan daftarnya. Save as menyimpan workspace JSON yang
+mempertahankan seluruh pengaturan; Source membuka representasi JSON lanjutan.
+Environment (didefinisikan di workspace JSON) dipilih dari sidebar dan berlaku
+untuk request yang dikirim.
 
 ## Opsional: import `.http`
 
@@ -49,8 +60,8 @@ Content-Type: application/json
 ```
 
 Contoh siap dibuka: [`examples/requests.http`](examples/requests.http).
-File yang diimpor bisa diedit lewat form. Di mode Source, klik **Validate /
-refresh** untuk memperbarui daftar; **Send** mem-parse source terbaru terlebih dulu.
+File yang diimpor bisa diedit lewat form. Di mode Source, klik **Validate**
+untuk memperbarui daftar; **Send** mem-parse source terbaru terlebih dulu.
 
 Format `.http` memakai subset eksplisit, bukan seluruh fitur VS Code REST Client
 atau JetBrains HTTP Client. Detail grammar dan JSON ada di
@@ -88,7 +99,7 @@ Tidak ada request jaringan saat validate/list/export. Ctrl+C membatalkan run.
 
 ## AI
 
-Konfigurasi dari panel **AI**, atau environment sebelum menjalankan aplikasi/CLI:
+Konfigurasi dari panel **Generate with AI** (menu More), atau environment sebelum menjalankan aplikasi/CLI:
 
 ```sh
 export SENTO_AI_BASE_URL=http://localhost:11434/v1
@@ -123,6 +134,7 @@ config. AI belum chat multi-turn, tool calling, atau analisis response.
 
 ```text
 main.go, app.go, view.go    Native window, state, request execution, UI
+theme.go, settings.go       Light/dark palette, icons; appearance setting
 builder.go                 Request form, tabs, headers/params/auth/body
 files.go, ai.go            File actions dan AI UI lifecycle
 internal/httpfile/         Parser .http

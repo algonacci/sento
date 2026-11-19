@@ -111,9 +111,10 @@ func (a *app) ask(title, label string) {
 
 func (a *app) confirmDialog(c *ui.Context) {
 	open := a.confirmAction != nil
-	ui.DialogBase(c, &open, func(_, panel ui.Element) {
+	ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
 		t := c.Theme()
-		panel.Width(420).Padding(20).Gap(16).Radius(t.Radius).Border(1, t.Border).Background(t.Surface)
+		backdrop.Background(black.Alpha(0.4))
+		panel.Width(420).Padding(20).Gap(16).Radius(12).Border(1, colLine).Background(colPane)
 		ui.Text(c, a.confirmTitle).FontWeight(600).Wrap()
 		ui.Row(c).Gap(8).Justify(ui.End).Children(func() {
 			c.Key("confirm-cancel")

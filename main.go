@@ -51,15 +51,20 @@ func (d *desktop) Close() {
 func main() {
 	d := &desktop{}
 	a := newApp(d)
+	// Native menus, dialogs and the frame follow the chosen appearance.
+	applyThemeSource = func(mode string) { mygo.Theme.SetSource(mygo.ThemeSource(mode)) }
+	applyThemeSource(a.prefs.Theme)
 	mygo.App.WhenReady(func() {
 		d.win = mygo.NewWindow(mygo.WindowOptions{
-			Title:     "Sento",
-			Width:     1120,
-			Height:    760,
-			MinWidth:  960,
-			MinHeight: 680,
-			StateKey:  "main",
-			Content:   ui.View(a.view),
+			Title:          "Sento",
+			Width:          1200,
+			Height:         780,
+			MinWidth:       720,
+			MinHeight:      480,
+			StateKey:       "main",
+			TitleBarStyle:  mygo.TitleBarHidden,
+			TitleBarHeight: 44,
+			Content:        ui.View(a.view),
 		})
 		if runtime.GOOS == "darwin" {
 			installMenu(a)
@@ -82,18 +87,36 @@ func main() {
 	}
 }
 
-// installMenu replaces macOS's default menu bar so that ⌘W reaches
-// closeInner, which leaves an open dialog alone, as Ctrl+W does elsewhere.
+// installMenu replaces macOS's default menu bar: ⌘W reaches closeInner,
+// which leaves an open dialog alone, as Ctrl+W does elsewhere, and the
+// title bar's More menu is in the menu bar too, with the same commands.
 func installMenu(a *app) {
+	do := func(fn func()) func(*mygo.MenuItem, *mygo.Window) {
+		return func(*mygo.MenuItem, *mygo.Window) { a.host.Update(fn) }
+	}
 	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
 		{Role: mygo.RoleAppMenu},
 		{Label: "File", Submenu: []*mygo.MenuItem{
-			{ID: "close", Label: "Close", Accelerator: "Cmd+W", Click: func(*mygo.MenuItem, *mygo.Window) {
-				a.host.Update(a.closeInner)
-			}},
+			{ID: "new-request", Label: "New Request", Accelerator: "Cmd+N", Click: do(a.cmdNewRequest)},
+			{ID: "import", Label: "Import…", Accelerator: "Cmd+O", Click: do(a.cmdImport)},
+			{ID: "save-as", Label: "Save As…", Accelerator: "Cmd+Shift+S", Click: do(a.cmdSaveAs)},
+			mygo.Separator(),
+			{ID: "close", Label: "Close", Accelerator: "Cmd+W", Click: do(a.closeInner)},
 		}},
 		{Role: mygo.RoleEditMenu},
-		{Role: mygo.RoleViewMenu},
+		{Label: "Request", Submenu: []*mygo.MenuItem{
+			{ID: "send", Label: "Send", Accelerator: "Cmd+Enter", Click: do(a.cmdSend)},
+			{ID: "cancel", Label: "Cancel", Accelerator: "Cmd+.", Click: do(a.cmdCancel)},
+			mygo.Separator(),
+			{ID: "focus-url", Label: "Go to URL", Accelerator: "Cmd+L", Click: do(a.cmdFocusURL)},
+			{ID: "filter", Label: "Filter Requests", Accelerator: "Cmd+F", Click: do(a.cmdFilter)},
+		}},
+		{Label: "View", Submenu: []*mygo.MenuItem{
+			{ID: "source", Label: "Workspace Source", Accelerator: "Cmd+Shift+E", Click: do(a.cmdSource)},
+			{ID: "ai", Label: "Generate with AI", Accelerator: "Cmd+Shift+G", Click: do(a.cmdAI)},
+			mygo.Separator(),
+			{ID: "shortcuts", Label: "Keyboard Shortcuts", Accelerator: "Cmd+/", Click: do(a.cmdShortcuts)},
+		}},
 		{Role: mygo.RoleWindowMenu},
 	}))
 }

@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"unicode/utf8"
 
 	"github.com/algonacci/sento/internal/httpfile"
 	"github.com/algonacci/sento/internal/request"
@@ -24,17 +23,35 @@ type host interface {
 }
 
 type app struct {
-	shortcutsOpen                                   bool
-	host                                            host
-	source, path, format, selected                  string
-	doc                                             *workspace.Document
-	message, response, responseHeaders, resultLabel string
-	busy, fileBusy, closed                          bool
-	cancel                                          context.CancelFunc
-	generation                                      int
-	ai                                              aiState
-	sourceMode                                      bool
-	requestTab                                      string
+	shortcutsOpen                  bool
+	host                           host
+	source, path, format, selected string
+	doc                            *workspace.Document
+	message, response, resultLabel string
+	busy, fileBusy, closed         bool
+	cancel                         context.CancelFunc
+	generation                     int
+	ai                             aiState
+	sourceMode                     bool
+	requestTab                     string
+
+	// The last response, apart from its body (response): resultLabel says
+	// it in words for the status bar and screen readers, these show it.
+	// respCode is 0 for a call that failed (respErr) or never ran.
+	respCode      int
+	respErr       string
+	respTime      string
+	respSize      string
+	respTruncated bool
+	respHeaders   []workspace.Pair
+	responseTab   string
+
+	// View state: the request filter, the panes' split and the fields the
+	// shortcuts focus; prefs are Sento's settings (the appearance).
+	filter, envPick       string
+	prefs                 settings
+	sideSplit, stackSplit float32
+	urlField, filterField ui.Handle
 
 	// savedDoc is the workspace as last opened or saved, and sourceBase
 	// the source text the workspace was last parsed from or shown as; the
@@ -51,7 +68,8 @@ type app struct {
 }
 
 func newApp(h host) *app {
-	a := &app{host: h, format: ".json", requestTab: "Body"}
+	a := &app{host: h, format: ".json", requestTab: "Params", responseTab: "Body", sideSplit: 50, stackSplit: 45}
+	a.prefs = loadSettings()
 	a.ai.baseURL = os.Getenv("SENTO_AI_BASE_URL")
 	a.ai.model = os.Getenv("SENTO_AI_MODEL")
 	a.ai.key = os.Getenv("SENTO_AI_API_KEY")
@@ -149,30 +167,59 @@ func (a *app) send() {
 	a.cancel, a.busy = cancel, true
 	a.generation++
 	gen := a.generation
-	a.response, a.responseHeaders, a.resultLabel = "", "", "Sending "+r.Name+"…"
+	a.clearResponse()
+	a.resultLabel = "Sending " + r.Name + "…"
 	go func() {
 		defer cancel()
 		defer client.CloseIdleConnections()
 		result := request.Send(ctx, req, workspace.Auth{}, nil, client)
 		// Formatting is also work: keep it off the UI thread.
-		body := request.BodyPreview(result.Body)
-		if len(body) > 256<<10 {
-			body = body[:256<<10] + "\n[Preview limited to 256 KiB; use the CLI for the full response]"
-		}
-		var headers strings.Builder
-		for _, h := range result.Headers {
-			fmt.Fprintf(&headers, "%s: %s\n", h.Key, h.Value)
-		}
+		body, truncated := previewBody(request.BodyPreview(result.Body))
 		a.host.Update(func() {
 			if a.closed || gen != a.generation {
 				return
 			}
 			a.busy, a.cancel = false, nil
-			a.response, a.responseHeaders = body, headers.String()
-			a.resultLabel = request.StatusLabel(result.Code, result.Status) + " · " + request.FormatDuration(result.Duration) + " · " + request.FormatSize(len(result.Body))
+			a.response, a.respTruncated, a.respHeaders = body, truncated, result.Headers
+			a.respCode, a.respErr = result.Code, result.Err
+			a.respTime, a.respSize = request.FormatDuration(result.Duration), request.FormatSize(len(result.Body))
+			a.resultLabel = request.StatusLabel(result.Code, result.Status) + " · " + a.respTime + " · " + a.respSize
 			if result.Err != "" {
+				a.respCode = 0
 				a.resultLabel = result.Err
 			}
 		})
 	}()
+}
+
+// previewLimit is how much of a body the GUI shows; the engine reads up to
+// 64 MiB, and the CLI prints all of it.
+const previewLimit = 256 << 10
+
+// previewBody cuts a body to previewLimit, at a character boundary, and
+// says whether it did.
+func previewBody(body string) (string, bool) {
+	if len(body) <= previewLimit {
+		return body, false
+	}
+	cut := previewLimit
+	for cut > 0 && !utf8.RuneStart(body[cut]) {
+		cut--
+	}
+	return body[:cut], true
+}
+
+// clearResponse forgets the last response, as a new send or another
+// request does.
+func (a *app) clearResponse() {
+	a.response, a.resultLabel, a.respErr, a.respTime, a.respSize = "", "", "", "", ""
+	a.respCode, a.respTruncated, a.respHeaders = 0, false, nil
+}
+
+// cancelSend stops a running request, keeping what the user sees honest.
+func (a *app) cancelSend() {
+	if a.busy {
+		a.stop()
+		a.resultLabel = "Canceled"
+	}
 }
