@@ -11,12 +11,16 @@ import (
 	"github.com/algonacci/sento/internal/httpfile"
 	"github.com/algonacci/sento/internal/request"
 	"github.com/algonacci/sento/internal/workspace"
+	"github.com/egoist/mygo/ui"
 )
 
 type host interface {
 	Update(func())
 	OpenFile() (string, error)
 	SaveFile(string) (string, error)
+	// Close closes the window, which quits the app. Call it only once
+	// allowClose is set, or the window holds the close and asks again.
+	Close()
 }
 
 type app struct {
@@ -31,6 +35,19 @@ type app struct {
 	ai                                              aiState
 	sourceMode                                      bool
 	requestTab                                      string
+
+	// savedDoc is the workspace as last opened or saved, and sourceBase
+	// the source text the workspace was last parsed from or shown as; the
+	// workspace has unsaved changes while either differs (unsaved).
+	savedDoc, sourceBase string
+	// allowClose lets the window close: set once nothing would be lost,
+	// or the user agreed to lose it.
+	allowClose bool
+	// A confirmation is open while confirmAction is set; confirmCancel is
+	// its Cancel button, which takes the keyboard as it opens.
+	confirmTitle, confirmLabel string
+	confirmAction              func()
+	confirmCancel              ui.Handle
 }
 
 func newApp(h host) *app {
@@ -43,6 +60,8 @@ func newApp(h host) *app {
 		Folders: []workspace.Folder{{ID: "requests", Name: "Requests"}},
 	}}}
 	a.newRequest()
+	// An empty new request is nothing to save.
+	a.markSaved()
 	return a
 }
 
@@ -59,6 +78,7 @@ func (a *app) parse() bool {
 		return false
 	}
 	a.doc = d
+	a.sourceBase = a.source
 	if _, r := d.FindRequest(a.selected); r == nil {
 		a.selected = ""
 		for _, p := range d.Projects {
@@ -87,6 +107,7 @@ func (a *app) toggleSource() {
 		return
 	}
 	a.source, a.format, a.sourceMode = string(data), ".json", true
+	a.sourceBase = a.source
 	a.message = "Advanced workspace source · .http files can be opened with Import"
 }
 

@@ -110,7 +110,10 @@ konfigurasi programmatic. Implementasi awal non-streaming dengan timeout 60 deti
 ## Batas tahap ini
 
 File disimpan eksplisit melalui Save as; belum ada autosave, recent files,
-history, atau konfirmasi unsaved edits saat mengganti editor/menutup app.
+history, atau konfirmasi unsaved edits saat mengganti editor (Import, Open
+generated requests). Menutup app (Cmd+W di macOS / Ctrl+W, tombol close
+window, Cmd+Q) bertanya dulu bila request/AI masih berjalan atau workspace
+berubah sejak terakhir dibuka/disimpan.
 Response GUI dibatasi preview 256 KiB; engine membaca maksimal 64 MiB.
 Cookie jar berlaku per eksekusi; belum ada sesi cookie antar-request.
 JSON mendukung environment dan project options; `.http` belum membaca sidecar

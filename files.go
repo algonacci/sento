@@ -54,6 +54,7 @@ func (a *app) openFile() {
 			a.path, a.format, a.source = path, format, string(data)
 			a.parse()
 			a.sourceMode = false
+			a.markSaved()
 		})
 	}()
 }
@@ -76,6 +77,7 @@ func (a *app) saveFile(export bool) {
 		name = "workspace.sento.json"
 	}
 	a.fileBusy = true
+	saved := a.docState()
 	go func() {
 		path, err := a.host.SaveFile(name)
 		if err == nil && path != "" {
@@ -90,6 +92,7 @@ func (a *app) saveFile(export bool) {
 				a.message = err.Error()
 			} else if path != "" {
 				a.message = "Saved " + path
+				a.savedDoc = saved
 				if !export {
 					a.path = path
 				}

@@ -1,18 +1,33 @@
 package main
 
-import "github.com/egoist/mygo/ui"
+import (
+	"runtime"
+
+	"github.com/egoist/mygo/ui"
+)
+
+// primaryKey names Cmd on macOS and Ctrl elsewhere, as shortcuts show it.
+func primaryKey() string {
+	if runtime.GOOS == "darwin" {
+		return "⌘"
+	}
+	return "Ctrl+"
+}
 
 func (a *app) navigation(c *ui.Context) {
+	a.confirmDialog(c)
 	ui.DialogBase(c, &a.shortcutsOpen, func(_, panel ui.Element) {
 		panel.Width(480).Padding(20).Gap(12).Background(c.Theme().Surface)
 		ui.Text(c, "Keyboard shortcuts").FontWeight(700)
-		ui.Text(c, "Cmd/Ctrl+N — New request\nCmd/Ctrl+O — Import\nCmd/Ctrl+Shift+S — Save as\nCmd/Ctrl+Enter — Send request\nCmd/Ctrl+. — Cancel request\nCmd/Ctrl+/ — Keyboard shortcuts\nEsc — Close this dialog").Wrap()
+		k := primaryKey()
+		ui.Text(c, k+"N — New request\n"+k+"O — Import\n"+k+"Shift+S — Save as\n"+k+"Enter — Send request\n"+k+". — Cancel request\n"+closeKey()+" — Close Sento (asks first if a request runs or changes are unsaved)\n"+k+"/ — Keyboard shortcuts\nEsc — Close this dialog").Wrap()
 		ui.Button(c, "Close shortcuts").AutoFocus().OnClick(func() { a.shortcutsOpen = false })
 	})
-	if a.shortcutsOpen || a.closed {
+	if a.shortcutsOpen || a.closed || a.confirmAction != nil {
 		return
 	}
 	c.OnShortcut(ui.Cmd, ui.KeySlash, func() { a.shortcutsOpen = true })
+	c.OnShortcut(ui.Cmd, ui.KeyW, a.closeInner)
 	if !a.fileBusy && !a.ai.open {
 		c.OnShortcut(ui.Cmd, ui.KeyN, a.newRequest)
 		c.OnShortcut(ui.Cmd, ui.KeyO, a.openFile)

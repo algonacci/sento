@@ -13,11 +13,17 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-type queuedHost struct{ updates chan func() }
+type queuedHost struct {
+	updates chan func()
+	closed  bool   // Close was called: the window closes and the app quits
+	open    string // what OpenFile returns
+	save    string // what SaveFile returns
+}
 
 func (h *queuedHost) Update(fn func())                { h.updates <- fn }
-func (h *queuedHost) OpenFile() (string, error)       { return "", nil }
-func (h *queuedHost) SaveFile(string) (string, error) { return "", nil }
+func (h *queuedHost) OpenFile() (string, error)       { return h.open, nil }
+func (h *queuedHost) SaveFile(string) (string, error) { return h.save, nil }
+func (h *queuedHost) Close()                          { h.closed = true }
 
 func (h *queuedHost) next(t *testing.T) func() {
 	t.Helper()
