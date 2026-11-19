@@ -121,6 +121,30 @@ func TestDiscardAndQuit(t *testing.T) {
 	}
 }
 
+func TestQuitWaitsForSaveAs(t *testing.T) {
+	a, h, tt := newCloseFixture(t)
+	_, r := a.doc.FindRequest(a.selected)
+	r.URL = "https://example.test/users"
+	h.save = filepath.Join(t.TempDir(), "workspace.sento.json")
+	a.saveFile(false)
+	if !a.fileBusy {
+		t.Fatal("Save as did not start")
+	}
+	pressClose(tt)
+	a.requestQuit() // window close / Cmd+Q uses the same guard
+	if h.closed || a.allowClose || a.confirmAction != nil || a.message != "Finish or cancel the file dialog before quitting Sento." {
+		t.Fatalf("quit during Save as: closed %v, confirm %q, message %q", h.closed, a.confirmTitle, a.message)
+	}
+	h.next(t)()
+	if a.fileBusy || a.unsaved() {
+		t.Fatalf("Save as did not finish: busy %v, unsaved %v", a.fileBusy, a.unsaved())
+	}
+	pressClose(tt)
+	if !h.closed || a.confirmAction != nil {
+		t.Fatalf("quit after Save as: closed %v, confirm %q", h.closed, a.confirmTitle)
+	}
+}
+
 // TestUnsavedSourceAndOpenedFile: source typed but not yet parsed counts;
 // a file just imported does not.
 func TestUnsavedSourceAndOpenedFile(t *testing.T) {

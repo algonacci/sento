@@ -33,6 +33,10 @@ func (a *app) requestQuit() {
 	if a.closed || a.allowClose || a.confirmAction != nil {
 		return
 	}
+	if a.fileBusy {
+		a.message = "Finish or cancel the file dialog before quitting Sento."
+		return
+	}
 	running := a.running()
 	unsaved := a.unsaved()
 	switch {
