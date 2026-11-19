@@ -84,15 +84,19 @@ func TestNativeViewsAndResize(t *testing.T) {
 	a := newApp(&queuedHost{updates: make(chan func(), 4)})
 	defer a.shutdown()
 	tt := ui.NewTester(a.view, 1120, 760)
-	for _, size := range [][2]int{{1120, 760}, {960, 680}} {
+	for _, size := range [][2]int{{1120, 760}, {960, 680}, {720, 600}} {
 		tt.SetSize(size[0], size[1])
-		for _, label := range []string{"Request URL", "HTTP method", "Send", "Response body", "Response headers"} {
+		for _, label := range []string{"Request URL", "HTTP method", "Send", "Save as", "Response body", "Response headers"} {
 			box, ok := tt.Find(label)
-			if !ok || box.W <= 0 || box.H <= 0 {
+			if !ok || box.W <= 0 || box.H <= 0 || box.X < 0 || box.X+box.W > float32(size[0]) {
 				t.Fatalf("missing %q at %v: %+v", label, size, box)
 			}
 		}
+		if size[0] == 720 {
+			snapshot(t, tt, "compact")
+		}
 	}
+	tt.SetSize(1120, 760)
 	snapshot(t, tt, "workspace")
 	if err := tt.Click("AI"); err != nil {
 		t.Fatal(err)

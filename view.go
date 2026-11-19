@@ -6,28 +6,32 @@ func (a *app) view(c *ui.Context) {
 	c.SetTheme(appTheme(c.Theme()))
 	defer a.navigation(c)
 	t := c.Theme()
+	width, _ := c.Size()
+	compact := width < 900
 	ui.Column(c).Fill().Background(t.Background).Children(func() {
-		ui.Row(c).FillWidth().Height(58).Padding(0, 20).Gap(10).
-			BorderWidth(0, 0, 1, 0).BorderColor(t.Border).Children(func() {
-			ui.Text(c, "Sento").FontSize(20).FontWeight(700)
-			ui.Text(c, "API client").TextColor(t.TextMuted)
-			ui.Button(c, "Shortcuts").OnClick(func() { a.shortcutsOpen = true })
-			ui.Spacer(c)
-			ui.Button(c, "New request").Disabled(a.fileBusy).OnClick(a.newRequest)
-			ui.Button(c, "Import").Disabled(a.fileBusy).OnClick(a.openFile)
-			ui.Button(c, "Save as").Disabled(a.fileBusy).OnClick(func() { a.saveFile(false) })
-			label := "Source"
-			if a.sourceMode {
-				label = "Builder"
+		header := ui.Column(c).FillWidth().Padding(10, 16).Gap(8).
+			BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
+		header.Children(func() {
+			ui.Row(c).FillWidth().Gap(10).Children(func() {
+				ui.Text(c, "Sento").FontSize(20).FontWeight(700)
+				if !compact {
+					ui.Text(c, "API client").TextColor(t.TextMuted)
+				}
+				ui.Spacer(c)
+				if !compact {
+					a.fileActions(c)
+				}
+				ui.Button(c, "Shortcuts").OnClick(func() { a.shortcutsOpen = true })
+			})
+			if compact {
+				ui.Row(c).FillWidth().Gap(6).Children(func() { a.fileActions(c) })
 			}
-			ui.Button(c, label).Disabled(a.fileBusy).OnClick(a.toggleSource)
-			ui.Button(c, "AI").OnClick(func() { a.ai.open = !a.ai.open })
 		})
 		if a.ai.open {
 			a.aiView(c)
 		} else {
 			ui.Row(c).FillWidth().Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
-				a.sidebar(c)
+				a.sidebar(c, compact)
 				ui.Column(c).Grow(1).MinWidth(0).Padding(16).Gap(10).Children(func() {
 					if a.sourceMode {
 						ui.Row(c).FillWidth().Gap(10).Children(func() {
@@ -62,9 +66,25 @@ func (a *app) view(c *ui.Context) {
 	})
 }
 
-func (a *app) sidebar(c *ui.Context) {
+func (a *app) fileActions(c *ui.Context) {
+	ui.Button(c, "New request").Disabled(a.fileBusy).OnClick(a.newRequest)
+	ui.Button(c, "Import").Disabled(a.fileBusy).OnClick(a.openFile)
+	ui.Button(c, "Save as").Disabled(a.fileBusy).OnClick(func() { a.saveFile(false) })
+	label := "Source"
+	if a.sourceMode {
+		label = "Builder"
+	}
+	ui.Button(c, label).Disabled(a.fileBusy).OnClick(a.toggleSource)
+	ui.Button(c, "AI").OnClick(func() { a.ai.open = !a.ai.open })
+}
+
+func (a *app) sidebar(c *ui.Context, compact bool) {
 	t := c.Theme()
-	ui.Scroll(c).Width(210).FillHeight().Background(t.Surface).Children(func() {
+	sidebarWidth := float32(210)
+	if compact {
+		sidebarWidth = 164
+	}
+	ui.Scroll(c).Width(sidebarWidth).FillHeight().Background(t.Surface).Children(func() {
 		ui.Column(c).FillWidth().Padding(14).Gap(8).Children(func() {
 			ui.Text(c, "REQUESTS").FontSize(11).FontWeight(600).TextColor(t.TextMuted)
 			if a.doc == nil {
